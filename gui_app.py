@@ -72,6 +72,8 @@ class UserPickerApp(App):
         main_controls_layout = BoxLayout(orientation='vertical', size_hint=(1, 0.4), spacing=5)
         main_controls_layout.add_widget(settings_button)
         main_controls_layout.add_widget(inactive_dropdown_layout)
+
+
         
         # Pick user button
         pick_user_button = Button(
@@ -147,6 +149,18 @@ class UserPickerApp(App):
         
         # Add all to right column
         right_column.add_widget(self.selected_user_layout)
+        
+        
+        # Right column spacing adjustment
+        right_column.add_widget(BoxLayout(size_hint=(1, 0.1)))
+        
+        # All-Time Victories display (moved to bottom)
+        victory_layout = BoxLayout(orientation='vertical', size_hint=(1, 0.2))
+        victory_layout.add_widget(Label(text='All-Time Victories:', font_size=16))
+        self.wins_label = Label(text='No victories yet', font_size=18)
+        victory_layout.add_widget(self.wins_label)
+        right_column.add_widget(victory_layout)
+        
         right_column.add_widget(tabs_layout)
         right_column.add_widget(self.users_scroll)
         
@@ -168,6 +182,7 @@ class UserPickerApp(App):
         # Initialize the display
         self.current_tab = 'active'
         self.update_user_list()
+        self.update_wins_display()
         
         return main_layout
     
@@ -212,6 +227,25 @@ class UserPickerApp(App):
         inactive_count = len(self.user_manager.get_inactive_users())
         self.status_bar.text = f'Active Users: {active_count} | Inactive Users: {inactive_count}'
     
+    def update_wins_display(self):
+        all_users = []
+        if hasattr(self.user_manager, 'active_users'):
+            all_users.extend(self.user_manager.active_users)
+        if hasattr(self.user_manager, 'inactive_users'):
+            all_users.extend(self.user_manager.inactive_users)
+
+        if not all_users:
+            self.wins_label.text = "No wins yet"
+            return
+
+        max_victories = max((user.total_victories for user in all_users), default=0)
+        if max_victories > 0:
+            winners = [user.name for user in all_users if user.total_victories == max_victories]
+            display_text = f"{max_victories} ({', '.join(winners)})"
+            self.wins_label.text = display_text
+        else:
+            self.wins_label.text = "No wins yet"
+    
     def switch_tab(self, tab):
         self.current_tab = tab
         if tab == 'active':
@@ -255,18 +289,115 @@ class UserPickerApp(App):
     def user_quit(self, instance):
         if self.user_manager.last_selected_user:
             user_name = self.user_manager.last_selected_user.name
-            self.user_manager.user_quit(user_name)
-            self.selected_user_label.text = 'No User Selected'
-            self.selected_user_stats.text = ''
-            self.quit_button.disabled = True
-            self.status_bar.text = f'User {user_name} has quit'
-            
-            # Check if only one user remains
-            if self.user_manager.get_active_user_count() <= 1:
-                self.show_popup('Game Over', 'Only one or no active users remain. The game will exit.')
-                self.save_and_exit(None)
+            # Record victory before quitting
+            winner = self.get_winner()
+            if winner:
+                winner.increment_victories()
+                self.update_wins_display()
+                self.show_winner_screen(winner)
             else:
-                self.update_user_list()
+                # Normal quit flow if no winner
+                self.user_manager.user_quit(user_name)
+                self.selected_user_label.text = 'No User Selected'
+                self.selected_user_stats.text = ''
+                self.quit_button.disabled = True
+                self.status_bar.text = f'User {user_name} has quit'
+                
+                # Check if only one user remains
+                if self.user_manager.get_active_user_count() <= 1:
+                    self.show_popup('Game Over', 'Only one or no active users remain. The game will exit.')
+                    self.save_and_exit(None)
+                else:
+                    self.update_user_list()
+    
+    def get_winner(self):
+        """Determine the winner when a user quits."""
+        # The winner is the last active user
+        active_users = self.user_manager.get_active_users()
+        if len(active_users) == 2:  # One will be quitting, so the other is the winner
+            quitting_user = self.user_manager.last_selected_user
+            for user in active_users:
+                if user.name != quitting_user.name:
+                    return user
+        return None
+        
+    def show_winner_screen(self, winner):
+        """Show the winner screen with victory display and options to quit or restart."""
+        content = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        
+        # Victory message
+        victory_label = Label(
+            text=f'🏆 {winner.name} WINS! 🏆',
+            font_size=24,
+            size_hint=(1, 0.5)
+        )
+        
+        stats_label = Label(
+            text=f'Total Victories: {winner.total_victories}\nTimes Picked: {winner.times_picked}',
+            font_size=18,
+            size_hint=(1, 0.3)
+        )
+        
+        buttons_layout = BoxLayout(orientation='horizontal', spacing=10, size_hint=(1, 0.2))
+        
+        # Restart button
+        restart_button = Button(
+            text='Start New Game',
+            size_hint=(0.5, 1),
+            background_color=(0.2, 0.7, 0.2, 1)
+        )
+        restart_button.bind(on_press=lambda x: self.restart_game(popup))
+        
+        # Quit button
+        quit_button = Button(
+            text='Save & Exit',
+            size_hint=(0.5, 1),
+            background_color=(0.7, 0.2, 0.2, 1)
+        )
+        quit_button.bind(on_press=lambda x: self.save_and_exit(None))
+        
+        buttons_layout.add_widget(restart_button)
+        buttons_layout.add_widget(quit_button)
+        
+        content.add_widget(victory_label)
+        content.add_widget(stats_label)
+        content.add_widget(buttons_layout)
+        
+        popup = Popup(
+            title='Game Over',
+            content=content,
+            size_hint=(0.8, 0.6),
+            auto_dismiss=False
+        )
+        
+        popup.open()
+    
+    def restart_game(self, popup):
+        """Close the current instance and start a new game."""
+        # Save users data before closing
+        self.user_manager.save_users()
+        
+        # Close the popup
+        popup.dismiss()
+        
+        # Import needed for subprocess
+        import subprocess
+        import sys
+        import os
+        
+        # Get the path to the current executable or script
+        if getattr(sys, 'frozen', False):
+            # If running as compiled executable
+            app_path = sys.executable
+        else:
+            # If running as script
+            app_path = os.path.abspath(__file__)
+            
+        # Start a new instance of the application
+        subprocess.Popen([sys.executable, app_path])
+        
+        # Exit the current instance
+        self.stop()
     
     def reactivate_user(self, instance):
         selected_name = self.inactive_spinner.text
@@ -365,13 +496,13 @@ class UserPickerApp(App):
             self.status_bar.text = 'Please enter a username'
     
     def reset_all_users(self, instance):
-        """Reset both picked_this_instance and times_picked counters for all users."""
+        """Reset only the current session data (picked_this_instance) for all users."""
         for user in self.user_manager.get_active_users() + self.user_manager.get_inactive_users():
             user.picked_this_instance = 0
-            user.times_picked = 0
+            # times_picked is preserved as historical data
         self.user_manager.save_users()
         self.update_user_list()
-        self.status_bar.text = 'Reset all users (both session and historical data)'
+        self.status_bar.text = 'Reset all users (current session only, historical data preserved)'
     
     def show_popup(self, title, message, callback=None):
         content = BoxLayout(orientation='vertical', padding=10, spacing=10)

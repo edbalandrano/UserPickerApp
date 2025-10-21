@@ -25,6 +25,11 @@ class UserManager:
         for user in self.active_users + self.inactive_users:
             user.picked_this_instance = 0
     
+    @property
+    def users(self):
+        """All users in both active and inactive lists"""
+        return self.active_users + self.inactive_users
+
     def add_user(self, name):
         """
         Add a new user to the active collection, checking for duplicates in both active and inactive lists.
@@ -147,12 +152,25 @@ class UserManager:
             # Handle both old and new format
             if isinstance(data, list):
                 # Old format - all users are active
-                self.active_users = [User.from_dict(user_data) for user_data in data]
+                self.active_users = []
+                for user_data in data:
+                    user = User.from_dict(user_data)
+                    user.picked_this_instance = 0
+                    self.active_users.append(user)
                 self.inactive_users = []
             else:
                 # New format with active and inactive users
-                self.active_users = [User.from_dict(user_data) for user_data in data.get("active", [])]
-                self.inactive_users = [User.from_dict(user_data) for user_data in data.get("inactive", [])]
+                self.active_users = []
+                for user_data in data.get("active", []):
+                    user = User.from_dict(user_data)
+                    user.picked_this_instance = 0
+                    self.active_users.append(user)
+                
+                self.inactive_users = []
+                for user_data in data.get("inactive", []):
+                    user = User.from_dict(user_data)
+                    user.picked_this_instance = 0
+                    self.inactive_users.append(user)
             
             return True
         except Exception as e:

@@ -1,25 +1,30 @@
 {
-    "active": [],
-    "inactive": [
+    "active": [
         {
             "name": "hector",
-            "times_picked": 0,
-            "picked_this_instance": 0
+            "times_picked": 55,
+            "picked_this_instance": 16,
+            "total_victories": 0
         },
         {
             "name": "Ed",
-            "times_picked": 0,
-            "picked_this_instance": 0
+            "times_picked": 50,
+            "picked_this_instance": 8,
+            "total_victories": 2
+        }
+    ],
+    "inactive": [
+        {
+            "name": "amanda",
+            "times_picked": 5,
+            "picked_this_instance": 0,
+            "total_victories": 0
         },
         {
             "name": "henry",
-            "times_picked": 0,
-            "picked_this_instance": 0
-        },
-        {
-            "name": "amanda",
-            "times_picked": 0,
-            "picked_this_instance": 0
+            "times_picked": 34,
+            "picked_this_instance": 10,
+            "total_victories": 0
         }
     ]
 }

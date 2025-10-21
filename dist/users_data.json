@@ -1,0 +1,23 @@
+{
+    "active": [],
+    "inactive": [
+        {
+            "name": "amanda",
+            "times_picked": 20,
+            "picked_this_instance": 0,
+            "total_victories": 0
+        },
+        {
+            "name": "ed",
+            "times_picked": 20,
+            "picked_this_instance": 0,
+            "total_victories": 3
+        },
+        {
+            "name": "henry",
+            "times_picked": 18,
+            "picked_this_instance": 0,
+            "total_victories": 0
+        }
+    ]
+}
